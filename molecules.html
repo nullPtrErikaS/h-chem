@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Molecule Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Source Sans 3', -apple-system, sans-serif;
+            background: #0a1929;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .molecule-viewer {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: #ffa07a;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 2rem;
+        }
+
+        .molecule-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #ff6b6b, #ffa07a);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .viewer-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .viewer-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .canvas-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        #molecule-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .molecule-info {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .molecule-info h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.5rem;
+            color: #5fdcd4;
+            margin-bottom: 1rem;
+        }
+
+        .molecule-info h3 {
+            font-size: 1.1rem;
+            color: #ffa07a;
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        .molecule-info p {
+            color: rgba(255,255,255,0.7);
+            line-height: 1.7;
+            margin-bottom: 0.75rem;
+        }
+
+        .formula {
+            font-family: monospace;
+            background: rgba(32, 178, 170, 0.2);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            color: #5fdcd4;
+            font-size: 1.2rem;
+            display: inline-block;
+            margin: 0.5rem 0;
+        }
+
+        .legend {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .legend-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.carbon { background: #505050; }
+        .legend-dot.oxygen { background: #ff4444; }
+        .legend-dot.calcium { background: #44bb44; }
+        .legend-dot.hydrogen { background: #ffffff; border: 1px solid rgba(255,255,255,0.3); }
+
+        /* Reaction Animation Section */
+        .reaction-section {
+            margin-top: 3rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .reaction-section h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.5rem;
+            color: #ff6b6b;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .reaction-canvas-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            height: 300px;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #reaction-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .reaction-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .reaction-btn {
+            background: linear-gradient(135deg, #20b2aa, #5fdcd4);
+            border: none;
+            color: #fff;
+            padding: 0.75rem 2rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .reaction-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(32, 178, 170, 0.3);
+        }
+
+        .reaction-equation {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .reaction-equation .formula {
+            font-size: 1rem;
+        }
+
+        .reaction-description {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="molecule-viewer">
+        <h1>Interactive 3D Molecules</h1>
+        <p class="subtitle">Explore the chemistry of ocean acidification</p>
+
+        <div class="molecule-tabs">
+            <button class="tab-btn active" onclick="showMolecule('co2')">Carbon Dioxide (CO₂)</button>
+            <button class="tab-btn" onclick="showMolecule('carbonate')">Carbonate (CO₃²⁻)</button>
+            <button class="tab-btn" onclick="showMolecule('bicarbonate')">Bicarbonate (HCO₃⁻)</button>
+            <button class="tab-btn" onclick="showMolecule('calcium-carbonate')">Calcium Carbonate (CaCO₃)</button>
+        </div>
+
+        <div class="viewer-container">
+            <div class="canvas-container">
+                <canvas id="molecule-canvas"></canvas>
+                <div class="controls-hint">Click and drag to rotate</div>
+            </div>
+            
+            <div class="molecule-info" id="molecule-info">
+                <!-- Content updated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="reaction-section">
+            <h2>Ocean Acidification Reaction</h2>
+            <p style="text-align: center; color: rgba(255,255,255,0.7); margin-bottom: 1rem;">
+                Watch how CO₂ dissolves in water and reacts with carbonate ions
+            </p>
+            <div class="reaction-canvas-container">
+                <canvas id="reaction-canvas"></canvas>
+            </div>
+            <div class="reaction-controls">
+                <button class="reaction-btn" onclick="playReaction()">Play Animation</button>
+            </div>
+            <div class="reaction-equation">
+                <span class="formula">CO₂ + H₂O → H₂CO₃ → H⁺ + HCO₃⁻</span>
+            </div>
+            <p class="reaction-description">
+                Excess hydrogen ions (H⁺) then react with carbonate ions (CO₃²⁻), 
+                reducing the carbonate available for coral calcification.
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Molecule data
+        const molecules = {
+            'co2': {
+                name: 'Carbon Dioxide',
+                formula: 'CO₂',
+                atoms: [
+                    { element: 'O', position: [-2, 0, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'C', position: [0, 0, 0], color: 0x505050, radius: 0.5 },
+                    { element: 'O', position: [2, 0, 0], color: 0xff4444, radius: 0.6 }
+                ],
+                bonds: [
+                    { start: 0, end: 1, type: 'double' },
+                    { start: 1, end: 2, type: 'double' }
+                ],
+                info: {
+                    structure: 'Linear molecule with a central carbon atom double-bonded to two oxygen atoms. Bond angle: 180°.',
+                    properties: 'Colorless, odorless gas. Soluble in water where it forms carbonic acid.',
+                    role: 'Primary greenhouse gas driving ocean acidification. When dissolved in seawater, it initiates a cascade of chemical reactions that lower pH.'
+                }
+            },
+            'carbonate': {
+                name: 'Carbonate Ion',
+                formula: 'CO₃²⁻',
+                atoms: [
+                    { element: 'C', position: [0, 0, 0], color: 0x505050, radius: 0.5 },
+                    { element: 'O', position: [0, 1.5, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [-1.3, -0.75, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [1.3, -0.75, 0], color: 0xff4444, radius: 0.6 }
+                ],
+                bonds: [
+                    { start: 0, end: 1, type: 'partial' },
+                    { start: 0, end: 2, type: 'partial' },
+                    { start: 0, end: 3, type: 'partial' }
+                ],
+                info: {
+                    structure: 'Trigonal planar structure with carbon at center. The -2 charge is delocalized across all three oxygen atoms through resonance.',
+                    properties: 'Highly reactive due to its -2 charge. Acts as a weak base. Essential for coral calcification.',
+                    role: 'Corals extract carbonate ions from seawater to build calcium carbonate skeletons. Ocean acidification depletes carbonate by reacting it with excess H⁺ ions.'
+                }
+            },
+            'bicarbonate': {
+                name: 'Bicarbonate Ion',
+                formula: 'HCO₃⁻',
+                atoms: [
+                    { element: 'C', position: [0, 0, 0], color: 0x505050, radius: 0.5 },
+                    { element: 'O', position: [0, 1.5, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [-1.3, -0.75, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [1.3, -0.75, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'H', position: [2.1, -1.2, 0], color: 0xffffff, radius: 0.3 }
+                ],
+                bonds: [
+                    { start: 0, end: 1, type: 'double' },
+                    { start: 0, end: 2, type: 'single' },
+                    { start: 0, end: 3, type: 'single' },
+                    { start: 3, end: 4, type: 'single' }
+                ],
+                info: {
+                    structure: 'Similar to carbonate but with one hydrogen attached. The -1 charge is distributed across the oxygen atoms.',
+                    properties: 'More stable than carbonate due to lower charge density. Forms strong hydrogen bonds with water.',
+                    role: 'The dominant form of dissolved carbon in seawater. As pH drops, the equilibrium shifts toward bicarbonate and away from carbonate.'
+                }
+            },
+            'calcium-carbonate': {
+                name: 'Calcium Carbonate',
+                formula: 'CaCO₃',
+                atoms: [
+                    { element: 'Ca', position: [-2, 0, 0], color: 0x44bb44, radius: 0.8 },
+                    { element: 'C', position: [1.5, 0, 0], color: 0x505050, radius: 0.5 },
+                    { element: 'O', position: [1.5, 1.5, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [0.2, -0.75, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [2.8, -0.75, 0], color: 0xff4444, radius: 0.6 }
+                ],
+                bonds: [
+                    { start: 1, end: 2, type: 'partial' },
+                    { start: 1, end: 3, type: 'partial' },
+                    { start: 1, end: 4, type: 'partial' },
+                    { start: 0, end: 3, type: 'ionic' }
+                ],
+                info: {
+                    structure: 'Ionic compound with Ca²⁺ cation and CO₃²⁻ anion held together by electrostatic attraction.',
+                    properties: 'Forms crystalline structures (aragonite in coral). Insoluble in water under normal conditions but dissolves in acidic water.',
+                    role: 'The primary building block of coral skeletons. Corals extract Ca²⁺ and CO₃²⁻ from seawater to form CaCO₃ through calcification.'
+                }
+            }
+        };
+
+        let scene, camera, renderer, moleculeGroup;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        // Initialize main molecule viewer
+        function initMoleculeViewer() {
+            const canvas = document.getElementById('molecule-canvas');
+            const container = canvas.parentElement;
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1520);
+            
+            camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+            camera.position.z = 8;
+            
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+            
+            const backLight = new THREE.DirectionalLight(0x5fdcd4, 0.3);
+            backLight.position.set(-5, -5, -5);
+            scene.add(backLight);
+            
+            moleculeGroup = new THREE.Group();
+            scene.add(moleculeGroup);
+            
+            // Mouse controls
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                
+                moleculeGroup.rotation.y += deltaX * 0.01;
+                moleculeGroup.rotation.x += deltaY * 0.01;
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            canvas.addEventListener('mouseup', () => isDragging = false);
+            canvas.addEventListener('mouseleave', () => isDragging = false);
+            
+            // Touch controls
+            canvas.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                
+                const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                const deltaY = e.touches[0].clientY - previousMousePosition.y;
+                
+                moleculeGroup.rotation.y += deltaX * 0.01;
+                moleculeGroup.rotation.x += deltaY * 0.01;
+                
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+            
+            canvas.addEventListener('touchend', () => isDragging = false);
+            
+            showMolecule('co2');
+            animate();
+        }
+
+        function createMolecule(moleculeData) {
+            // Clear existing molecule
+            while(moleculeGroup.children.length > 0) {
+                moleculeGroup.remove(moleculeGroup.children[0]);
+            }
+            
+            // Create atoms
+            moleculeData.atoms.forEach((atom, index) => {
+                const geometry = new THREE.SphereGeometry(atom.radius, 32, 32);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: atom.color,
+                    shininess: 100,
+                    specular: 0x444444
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(...atom.position);
+                moleculeGroup.add(sphere);
+            });
+            
+            // Create bonds
+            moleculeData.bonds.forEach(bond => {
+                const startAtom = moleculeData.atoms[bond.start];
+                const endAtom = moleculeData.atoms[bond.end];
+                
+                const start = new THREE.Vector3(...startAtom.position);
+                const end = new THREE.Vector3(...endAtom.position);
+                
+                if (bond.type === 'ionic') {
+                    // Dashed line for ionic bonds
+                    const points = [start, end];
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineDashedMaterial({ 
+                        color: 0x5fdcd4, 
+                        dashSize: 0.2, 
+                        gapSize: 0.1 
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    line.computeLineDistances();
+                    moleculeGroup.add(line);
+                } else {
+                    // Cylinder for covalent bonds
+                    const direction = new THREE.Vector3().subVectors(end, start);
+                    const length = direction.length() - startAtom.radius - endAtom.radius + 0.2;
+                    
+                    const bondGeometry = new THREE.CylinderGeometry(0.08, 0.08, length, 8);
+                    const bondMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                    
+                    const bondMesh = new THREE.Mesh(bondGeometry, bondMaterial);
+                    
+                    const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                    bondMesh.position.copy(midpoint);
+                    
+                    bondMesh.quaternion.setFromUnitVectors(
+                        new THREE.Vector3(0, 1, 0),
+                        direction.normalize()
+                    );
+                    
+                    moleculeGroup.add(bondMesh);
+                    
+                    // Double bond
+                    if (bond.type === 'double') {
+                        const offset = new THREE.Vector3(0.15, 0, 0.15);
+                        const bondMesh2 = bondMesh.clone();
+                        bondMesh.position.add(offset);
+                        bondMesh2.position.sub(offset);
+                        moleculeGroup.add(bondMesh2);
+                    }
+                }
+            });
+            
+            moleculeGroup.rotation.set(0.3, 0.5, 0);
+        }
+
+        function showMolecule(moleculeKey) {
+            const data = molecules[moleculeKey];
+            createMolecule(data);
+            
+            // Update tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update info panel
+            const infoPanel = document.getElementById('molecule-info');
+            infoPanel.innerHTML = `
+                <h2>${data.name}</h2>
+                <div class="formula">${data.formula}</div>
+                
+                <h3>Structure</h3>
+                <p>${data.info.structure}</p>
+                
+                <h3>Properties</h3>
+                <p>${data.info.properties}</p>
+                
+                <h3>Role in Ocean Acidification</h3>
+                <p>${data.info.role}</p>
+                
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-dot carbon"></span> Carbon</div>
+                    <div class="legend-item"><span class="legend-dot oxygen"></span> Oxygen</div>
+                    <div class="legend-item"><span class="legend-dot calcium"></span> Calcium</div>
+                    <div class="legend-item"><span class="legend-dot hydrogen"></span> Hydrogen</div>
+                </div>
+            `;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!isDragging) {
+                moleculeGroup.rotation.y += 0.005;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Reaction Animation
+        let reactionScene, reactionCamera, reactionRenderer;
+        let reactionMolecules = [];
+        let reactionPlaying = false;
+
+        function initReactionViewer() {
+            const canvas = document.getElementById('reaction-canvas');
+            const container = canvas.parentElement;
+            
+            reactionScene = new THREE.Scene();
+            reactionScene.background = new THREE.Color(0x0a1520);
+            
+            reactionCamera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+            reactionCamera.position.z = 12;
+            
+            reactionRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            reactionRenderer.setSize(container.clientWidth, container.clientHeight);
+            reactionRenderer.setPixelRatio(window.devicePixelRatio);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            reactionScene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            reactionScene.add(directionalLight);
+            
+            setupReaction();
+            animateReaction();
+        }
+
+        function setupReaction() {
+            // Clear scene
+            reactionMolecules.forEach(m => reactionScene.remove(m));
+            reactionMolecules = [];
+            
+            // CO2 molecule (left side)
+            const co2Group = new THREE.Group();
+            co2Group.position.set(-5, 0, 0);
+            
+            const co2C = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0x505050 })
+            );
+            const co2O1 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            co2O1.position.x = -1.2;
+            const co2O2 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            co2O2.position.x = 1.2;
+            
+            co2Group.add(co2C, co2O1, co2O2);
+            reactionScene.add(co2Group);
+            reactionMolecules.push(co2Group);
+            
+            // H2O molecule (right side of CO2)
+            const h2oGroup = new THREE.Group();
+            h2oGroup.position.set(-1, 0, 0);
+            
+            const h2oO = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            const h2oH1 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xffffff })
+            );
+            h2oH1.position.set(-0.6, 0.5, 0);
+            const h2oH2 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xffffff })
+            );
+            h2oH2.position.set(0.6, 0.5, 0);
+            
+            h2oGroup.add(h2oO, h2oH1, h2oH2);
+            reactionScene.add(h2oGroup);
+            reactionMolecules.push(h2oGroup);
+            
+            // Arrow
+            const arrowGeometry = new THREE.ConeGeometry(0.3, 0.6, 8);
+            const arrowMaterial = new THREE.MeshPhongMaterial({ color: 0x5fdcd4 });
+            const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+            arrow.position.set(2, 0, 0);
+            arrow.rotation.z = -Math.PI / 2;
+            reactionScene.add(arrow);
+            reactionMolecules.push(arrow);
+            
+            // H+ (right side)
+            const hPlus = new THREE.Group();
+            hPlus.position.set(5, 1, 0);
+            
+            const hAtom = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xffffff })
+            );
+            hPlus.add(hAtom);
+            reactionScene.add(hPlus);
+            reactionMolecules.push(hPlus);
+            
+            // HCO3- (right side)
+            const hco3Group = new THREE.Group();
+            hco3Group.position.set(5, -1, 0);
+            
+            const hco3C = new THREE.Mesh(
+                new THREE.SphereGeometry(0.35, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0x505050 })
+            );
+            const hco3O1 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            hco3O1.position.set(0, 0.9, 0);
+            const hco3O2 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            hco3O2.position.set(-0.8, -0.45, 0);
+            const hco3O3 = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            hco3O3.position.set(0.8, -0.45, 0);
+            const hco3H = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0xffffff })
+            );
+            hco3H.position.set(1.3, -0.75, 0);
+            
+            hco3Group.add(hco3C, hco3O1, hco3O2, hco3O3, hco3H);
+            reactionScene.add(hco3Group);
+            reactionMolecules.push(hco3Group);
+        }
+
+        function playReaction() {
+            if (reactionPlaying) return;
+            reactionPlaying = true;
+            
+            // Reset positions
+            setupReaction();
+            
+            const duration = 2000;
+            const start = Date.now();
+            
+            function animateStep() {
+                const elapsed = Date.now() - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3); // ease out cubic
+                
+                // Move CO2 and H2O toward center
+                if (reactionMolecules[0]) reactionMolecules[0].position.x = -5 + eased * 3;
+                if (reactionMolecules[1]) reactionMolecules[1].position.x = -1 + eased * 1;
+                
+                // Move products from center outward
+                if (reactionMolecules[3]) {
+                    reactionMolecules[3].position.x = 2 + eased * 3;
+                    reactionMolecules[3].position.y = eased * 1;
+                }
+                if (reactionMolecules[4]) {
+                    reactionMolecules[4].position.x = 2 + eased * 3;
+                    reactionMolecules[4].position.y = -eased * 1;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateStep);
+                } else {
+                    reactionPlaying = false;
+                }
+            }
+            
+            animateStep();
+        }
+
+        function animateReaction() {
+            requestAnimationFrame(animateReaction);
+            
+            // Gentle rotation for molecules
+            reactionMolecules.forEach((mol, i) => {
+                if (mol.rotation && i !== 2) { // Don't rotate the arrow
+                    mol.rotation.y += 0.01;
+                }
+            });
+            
+            reactionRenderer.render(reactionScene, reactionCamera);
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('molecule-canvas').parentElement;
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            
+            const reactionContainer = document.getElementById('reaction-canvas').parentElement;
+            reactionRenderer.setSize(reactionContainer.clientWidth, reactionContainer.clientHeight);
+            reactionCamera.aspect = reactionContainer.clientWidth / reactionContainer.clientHeight;
+            reactionCamera.updateProjectionMatrix();
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initMoleculeViewer();
+            initReactionViewer();
+        });
+    </script>
+</body>
+</html>
