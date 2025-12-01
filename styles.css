@@ -797,6 +797,25 @@ section {
     font-size: 1.1rem;
 }
 
+/* References list styling */
+.references-list {
+    list-style-position: inside;
+    padding-left: 0.5rem;
+    margin: 0;
+}
+
+.references-list li {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+.references-list li a {
+    color: var(--ocean-mid);
+    text-decoration: underline;
+}
+
 .section-light .equation {
     background: var(--ocean-mid);
     color: var(--white);
