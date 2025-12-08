@@ -330,6 +330,7 @@
 
         <div class="molecule-tabs">
             <button class="tab-btn active" data-key="co2" onclick="showMolecule('co2', this)">Carbon Dioxide (CO₂)</button>
+            <button class="tab-btn" data-key="carbonic-acid" onclick="showMolecule('carbonic-acid', this)">Carbonic Acid (H₂CO₃)</button>
             <button class="tab-btn" data-key="carbonate" onclick="showMolecule('carbonate', this)">Carbonate (CO₃²⁻)</button>
             <button class="tab-btn" data-key="bicarbonate" onclick="showMolecule('bicarbonate', this)">Bicarbonate (HCO₃⁻)</button>
             <button class="tab-btn" data-key="calcium-carbonate" onclick="showMolecule('calcium-carbonate', this)">Calcium Carbonate (CaCO₃)</button>
@@ -356,7 +357,7 @@
                 <div class="reaction-hint">Click and drag to rotate</div>
             </div>
             <div class="reaction-equation">
-                <span class="formula">CO₂ + H₂O → H₂CO₃ → H⁺ + HCO₃⁻</span>
+                <span class="formula">CO₂ + H₂O ⇌ H₂CO₃ ⇌ H⁺ + HCO₃⁻</span>
             </div>
             <p class="reaction-description">
                 Excess hydrogen ions (H⁺) then react with carbonate ions (CO₃²⁻), 
@@ -385,6 +386,30 @@
                     structure: 'Linear molecule with a central carbon atom double-bonded to two oxygen atoms. Bond angle: 180°.',
                     properties: 'Colorless, odorless gas. Soluble in water where it forms carbonic acid.',
                     role: 'Primary greenhouse gas driving ocean acidification. When dissolved in seawater, it initiates a cascade of chemical reactions that lower pH.'
+                }
+            },
+            'carbonic-acid': {
+                name: 'Carbonic Acid',
+                formula: 'H₂CO₃',
+                atoms: [
+                    { element: 'C', position: [0, 0, 0], color: 0x505050, radius: 0.5 },
+                    { element: 'O', position: [0, 1.5, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [-1.3, -0.75, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'O', position: [1.3, -0.75, 0], color: 0xff4444, radius: 0.6 },
+                    { element: 'H', position: [-2.1, -1.2, 0], color: 0xffffff, radius: 0.3 },
+                    { element: 'H', position: [2.1, -1.2, 0], color: 0xffffff, radius: 0.3 }
+                ],
+                bonds: [
+                    { start: 0, end: 1, type: 'double' },
+                    { start: 0, end: 2, type: 'single' },
+                    { start: 0, end: 3, type: 'single' },
+                    { start: 2, end: 4, type: 'single' },
+                    { start: 3, end: 5, type: 'single' }
+                ],
+                info: {
+                    structure: 'A weak acid with a central carbon double-bonded to one oxygen and single-bonded to two hydroxyl (OH) groups.',
+                    properties: 'Unstable in water. Rapidly dissociates into hydrogen ions (H⁺) and bicarbonate ions (HCO₃⁻).',
+                    role: 'Forms when CO₂ dissolves in seawater. Its dissociation releases H⁺ ions, which lower ocean pH and reduce carbonate availability for coral growth.'
                 }
             },
             'carbonate': {
@@ -788,41 +813,70 @@
 
         function createCO2() {
             const group = new THREE.Group();
-            const cMat = new THREE.MeshPhongMaterial({ color: elementColors['c'] });
-            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'] });
+            const cMat = new THREE.MeshPhongMaterial({ color: elementColors['c'], shininess: 100 });
+            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'], shininess: 100 });
+            const bondMat = new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 50 });
             
             const c = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), cMat);
             const o1 = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), oMat);
             const o2 = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), oMat);
             
-            o1.position.x = -0.9;
-            o2.position.x = 0.9;
+            o1.position.x = -1.0;
+            o2.position.x = 1.0;
             
-            group.add(c, o1, o2);
+            // Double bonds (two cylinders each)
+            const bond1a = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8), bondMat);
+            bond1a.rotation.z = Math.PI / 2;
+            bond1a.position.set(-0.5, 0.08, 0);
+            const bond1b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8), bondMat);
+            bond1b.rotation.z = Math.PI / 2;
+            bond1b.position.set(-0.5, -0.08, 0);
+            
+            const bond2a = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8), bondMat);
+            bond2a.rotation.z = Math.PI / 2;
+            bond2a.position.set(0.5, 0.08, 0);
+            const bond2b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8), bondMat);
+            bond2b.rotation.z = Math.PI / 2;
+            bond2b.position.set(0.5, -0.08, 0);
+            
+            group.add(c, o1, o2, bond1a, bond1b, bond2a, bond2b);
             return group;
         }
 
         function createH2O() {
             const group = new THREE.Group();
-            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'] });
-            const hMat = new THREE.MeshPhongMaterial({ color: elementColors['h'] });
+            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'], shininess: 100 });
+            const hMat = new THREE.MeshPhongMaterial({ color: elementColors['h'], shininess: 100 });
+            const bondMat = new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 50 });
             
             const o = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), oMat);
             const h1 = new THREE.Mesh(new THREE.SphereGeometry(0.22, 32, 32), hMat);
             const h2 = new THREE.Mesh(new THREE.SphereGeometry(0.22, 32, 32), hMat);
             
-            h1.position.set(-0.5, 0.4, 0);
-            h2.position.set(0.5, 0.4, 0);
+            // 104.5 degree angle
+            h1.position.set(-0.45, 0.5, 0);
+            h2.position.set(0.45, 0.5, 0);
             
-            group.add(o, h1, h2);
+            // Bonds with correct angle
+            const bondLength = 0.55;
+            const bond1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, bondLength, 8), bondMat);
+            bond1.position.set(-0.225, 0.25, 0);
+            bond1.rotation.z = -0.52; // ~30 degrees from vertical
+            
+            const bond2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, bondLength, 8), bondMat);
+            bond2.position.set(0.225, 0.25, 0);
+            bond2.rotation.z = 0.52;
+            
+            group.add(o, h1, h2, bond1, bond2);
             return group;
         }
 
         function createH2CO3() {
             const group = new THREE.Group();
-            const cMat = new THREE.MeshPhongMaterial({ color: elementColors['c'] });
-            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'] });
-            const hMat = new THREE.MeshPhongMaterial({ color: elementColors['h'] });
+            const cMat = new THREE.MeshPhongMaterial({ color: elementColors['c'], shininess: 100 });
+            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'], shininess: 100 });
+            const hMat = new THREE.MeshPhongMaterial({ color: elementColors['h'], shininess: 100 });
+            const bondMat = new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 50 });
             
             const c = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 32), cMat);
             const o1 = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), oMat);
@@ -831,13 +885,37 @@
             const h1 = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 32), hMat);
             const h2 = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 32), hMat);
             
-            o1.position.set(0, 0.8, 0);
-            o2.position.set(-0.7, -0.4, 0);
-            o3.position.set(0.7, -0.4, 0);
-            h1.position.set(-1.1, -0.7, 0);
-            h2.position.set(1.1, -0.7, 0);
+            o1.position.set(0, 0.85, 0);
+            o2.position.set(-0.74, -0.42, 0);
+            o3.position.set(0.74, -0.42, 0);
+            h1.position.set(-1.2, -0.75, 0);
+            h2.position.set(1.2, -0.75, 0);
             
-            group.add(c, o1, o2, o3, h1, h2);
+            // C=O double bond (top)
+            const bond1a = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8), bondMat);
+            bond1a.position.set(-0.06, 0.425, 0);
+            const bond1b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8), bondMat);
+            bond1b.position.set(0.06, 0.425, 0);
+            
+            // C-O bonds (left and right)
+            const bond2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.52, 8), bondMat);
+            bond2.rotation.z = 2.09; // 120 degrees
+            bond2.position.set(-0.37, -0.21, 0);
+            
+            const bond3 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.52, 8), bondMat);
+            bond3.rotation.z = -2.09;
+            bond3.position.set(0.37, -0.21, 0);
+            
+            // O-H bonds
+            const bond4 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.38, 8), bondMat);
+            bond4.rotation.z = 0.7;
+            bond4.position.set(-0.97, -0.585, 0);
+            
+            const bond5 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.38, 8), bondMat);
+            bond5.rotation.z = -0.7;
+            bond5.position.set(0.97, -0.585, 0);
+            
+            group.add(c, o1, o2, o3, h1, h2, bond1a, bond1b, bond2, bond3, bond4, bond5);
             return group;
         }
 
@@ -851,9 +929,10 @@
 
         function createHCO3() {
             const group = new THREE.Group();
-            const cMat = new THREE.MeshPhongMaterial({ color: elementColors['c'] });
-            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'] });
-            const hMat = new THREE.MeshPhongMaterial({ color: elementColors['h'] });
+            const cMat = new THREE.MeshPhongMaterial({ color: elementColors['c'], shininess: 100 });
+            const oMat = new THREE.MeshPhongMaterial({ color: elementColors['o'], shininess: 100 });
+            const hMat = new THREE.MeshPhongMaterial({ color: elementColors['h'], shininess: 100 });
+            const bondMat = new THREE.MeshPhongMaterial({ color: 0x999999, shininess: 50 });
             
             const c = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 32), cMat);
             const o1 = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), oMat);
@@ -861,12 +940,32 @@
             const o3 = new THREE.Mesh(new THREE.SphereGeometry(0.35, 32, 32), oMat);
             const h = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 32), hMat);
             
-            o1.position.set(0, 0.75, 0);
-            o2.position.set(-0.65, -0.35, 0);
-            o3.position.set(0.65, -0.35, 0);
-            h.position.set(1.05, -0.6, 0);
+            o1.position.set(0, 0.8, 0);
+            o2.position.set(-0.69, -0.4, 0);
+            o3.position.set(0.69, -0.4, 0);
+            h.position.set(1.1, -0.68, 0);
             
-            group.add(c, o1, o2, o3, h);
+            // C=O double bond (top)
+            const bond1a = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.47, 8), bondMat);
+            bond1a.position.set(-0.06, 0.4, 0);
+            const bond1b = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.47, 8), bondMat);
+            bond1b.position.set(0.06, 0.4, 0);
+            
+            // C-O bonds (left and right)
+            const bond2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.48, 8), bondMat);
+            bond2.rotation.z = 2.09; // 120 degrees
+            bond2.position.set(-0.345, -0.2, 0);
+            
+            const bond3 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.48, 8), bondMat);
+            bond3.rotation.z = -2.09;
+            bond3.position.set(0.345, -0.2, 0);
+            
+            // O-H bond
+            const bond4 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.35, 8), bondMat);
+            bond4.rotation.z = -0.65;
+            bond4.position.set(0.895, -0.54, 0);
+            
+            group.add(c, o1, o2, o3, h, bond1a, bond1b, bond2, bond3, bond4);
             return group;
         }
 
@@ -874,22 +973,37 @@
             const group = new THREE.Group();
             const mat = new THREE.MeshPhongMaterial({ color: 0x5fdcd4 });
             
-            // Arrow shaft
-            const shaft = new THREE.Mesh(
-                new THREE.BoxGeometry(0.6, 0.1, 0.1),
+            // Top arrow shaft
+            const shaft1 = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.06, 0.06),
                 mat
             );
-            shaft.position.x = -0.1;
+            shaft1.position.set(-0.1, 0.08, 0);
             
-            // Arrow head
-            const head = new THREE.Mesh(
-                new THREE.ConeGeometry(0.15, 0.3, 8),
+            // Bottom arrow shaft
+            const shaft2 = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.06, 0.06),
                 mat
             );
-            head.rotation.z = -Math.PI / 2;
-            head.position.x = 0.35;
+            shaft2.position.set(-0.1, -0.08, 0);
             
-            group.add(shaft, head);
+            // Right arrow head (forward)
+            const head1 = new THREE.Mesh(
+                new THREE.ConeGeometry(0.12, 0.25, 8),
+                mat
+            );
+            head1.rotation.z = -Math.PI / 2;
+            head1.position.set(0.35, 0.08, 0);
+            
+            // Left arrow head (reverse)
+            const head2 = new THREE.Mesh(
+                new THREE.ConeGeometry(0.12, 0.25, 8),
+                mat
+            );
+            head2.rotation.z = Math.PI / 2;
+            head2.position.set(-0.55, -0.08, 0);
+            
+            group.add(shaft1, shaft2, head1, head2);
             return group;
         }
 
@@ -948,6 +1062,8 @@
                 <ul>
                     <li><a href="https://www.gbrmpa.gov.au/" target="_blank">Great Barrier Reef Marine Park</a></li>
                     <li><a href="https://coral.org/" target="_blank">Coral Reef Alliance</a></li>
+                    <li><a href="https://oceanacidification.noaa.gov/" target="_blank">NOAA Ocean Acidification</a></li>
+                    <li><a href="https://www.barrierreef.org/" target="_blank">Great Barrier Reef Foundation</a></li>
                     <li><a href="references.html">References</a></li>
                 </ul>
             </div>
